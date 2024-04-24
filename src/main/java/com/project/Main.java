@@ -1,34 +1,43 @@
 package com.project;
 
-import java.math.BigDecimal;
-import java.text.DecimalFormat;
+import java.util.Scanner;
 import java.util.TreeMap;
 import java.util.concurrent.ForkJoinPool;
 
 public class Main {
     public static void main(String[] args) {
-        if (args.length != 2) {
-            System.err.println("Wrong arguments. Required: <String> path, <int> filesize");
-            System.exit(1);
+        String path;
+        long fileSize;
+
+        if (args.length == 2) {
+            path = args[0];
+            fileSize = Long.parseLong(args[1]) * 1024 * 1024;
+        } else {
+            Scanner scanner = new Scanner(System.in);
+
+            System.out.print("Enter the path to the directory: ");
+            path = scanner.nextLine();
+
+            System.out.print("Enter the file size in megabytes: ");
+            fileSize = scanner.nextLong() * 1024 * 1024;
+
+            scanner.close();
         }
 
-        String path = args[0];
-        long fileSize = Long.parseLong(args[1]) * 1024 * 1024;
+        TreeMap<Long, String> files = new ForkJoinPool().invoke(new RecursiveFileSearcher(path, fileSize));
 
-        String[] values = {" bytes", " Kb", " Mb", " Gb", " Tb", " Pb"};
+        if (files.isEmpty()) {
+            System.out.println("No files found exceeding the specified size.");
+        } else {
+            files.forEach((size, filePath) -> {
+                System.out.println(formatSize(size) + "\t" + filePath);
+            });
+        }
+    }
 
-        TreeMap<Long, String> files;
-        files = new ForkJoinPool().invoke(new RecursiveFileSearcher(path, fileSize));
-
-        files.forEach((l, s) -> {
-
-            int i = BigDecimal.valueOf(Math.log(l) / Math.log(1024)).intValue();
-            BigDecimal size = BigDecimal.valueOf(l);
-            for (int j = 0; j < i; j++) {
-                size = size.divide(BigDecimal.valueOf(1024));
-            }
-            DecimalFormat format = new DecimalFormat("###.#");
-            System.out.println(format.format(size) + values[i] + "\t" + s);
-        });
+    private static String formatSize(long size) {
+        String[] units = {" bytes", " KB", " MB", " GB", " TB"};
+        int unitIndex = (int) (Math.log10(size) / Math.log10(1024));
+        return String.format("%.1f%s", size / Math.pow(1024, unitIndex), units[unitIndex]);
     }
 }
